@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout # Changed from Deployment
+metadata:
+    name: {{ .Chart.Name }}
+spec:
+    replicas: {{ .Values.replicaCount }}
+    strategy:
+        canary: # Define the canary strategy
+        steps:
+        - setWeight: 20 # Send 20% of traffic to the new version
+        - pause: { duration: 30s } # Pause for 30 seconds to observe
+        - setWeight: 50 # Send 50% traffic
+        - pause: { duration: 30s }
+        # The rollout will be fully promoted after the last step
+    selector:
+        matchLabels:
+        app: {{ .Chart.Name }}
+    template: # The pod template is now nested under template
+        metadata:
+        labels:
+            app: {{ .Chart.Name }}
+        spec:
+        serviceAccountName: guestbook-sa
+        containers:
+            - name: {{ .Chart.Name }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            ports:
+                - containerPort: 80
+            env:
+                - name: DB_PASSWORD
+                valueFrom:
+                    secretKeyRef:
+                        name: db-credentials
+                        key: password

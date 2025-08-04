@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # --- REPLACE THIS LINE ---
+    repoURL: 'https://github.com/Consultantsrihari/gitops-manifests.git'
+    targetRevision: HEAD
+    path: helm-charts/guestbook # Points to the directory of the Helm chart
+    helm:
+      valueFiles:
+      - values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: guestbook # Deploy the app into this namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true # ArgoCD will create the 'guestbook' namespace if it doesn't exist

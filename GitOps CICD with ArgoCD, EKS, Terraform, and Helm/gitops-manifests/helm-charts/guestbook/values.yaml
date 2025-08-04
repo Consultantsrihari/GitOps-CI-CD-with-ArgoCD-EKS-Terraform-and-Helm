@@ -1,0 +1,15 @@
+replicaCount: 2
+
+image:
+  repository: YOUR_ECR_REPO_URL # We will populate this later via CI
+  tag: "latest" # This tag will be updated by our CI pipeline
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+
+aws:
+  region: "us-east-1" # Or your AWS Region
+  # This is a placeholder we will fill in the next step.
+  serviceAccountRoleArn: "arn:aws:iam::353203138981:role/gitops-cluster-guestbook-sa-role"
