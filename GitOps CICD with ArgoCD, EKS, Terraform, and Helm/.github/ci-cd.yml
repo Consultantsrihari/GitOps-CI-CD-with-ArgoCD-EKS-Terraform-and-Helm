@@ -1,0 +1,65 @@
+name: Build, Push, and Deploy
+
+on:
+  push:
+    branches:
+      - main # This pipeline runs on every push to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for AWS OIDC authentication
+      contents: read    # Required to checkout the code
+
+    steps:
+      # 1. Checkout the application source code
+      - name: Checkout App Source Code
+        uses: actions/checkout@v3
+
+      # 2. Configure AWS credentials using the OIDC Role
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_TO_ASSUME }} # Secret
+          aws-region: ${{ secrets.AWS_REGION }} # Secret
+
+      # 3. Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. Build, tag, and push the Docker image to ECR
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }} # Secret
+          IMAGE_TAG: ${{ github.sha }} # Use the unique commit SHA as the image tag
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 5. Checkout the manifests repository
+      - name: Checkout Manifests Repo
+        uses: actions/checkout@v3
+        with:
+          repository: YOUR_GITHUB_USERNAME/gitops-manifests # Your manifests repo
+          token: ${{ secrets.GITOPS_PAT }} # Secret (PAT with repo access)
+          path: 'gitops-manifests' # Checkout to a subdirectory
+
+      # 6. Update the Helm values file with the new image details
+      - name: Update Helm values file
+        uses: mikefarah/yq@v4.30.8
+        with:
+          cmd: |
+            yq e '.image.tag = "${{ github.sha }}"' -i 'gitops-manifests/helm-charts/guestbook/values.yaml'
+            yq e '.image.repository = "${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}"' -i 'gitops-manifests/helm-charts/guestbook/values.yaml'
+
+      # 7. Commit and push the changes to the manifests repo
+      - name: Commit and push changes
+        run: |
+          cd gitops-manifests
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions-bot@github.com"
+          git commit -am "Update image tag to ${{ github.sha }}"
+          git push
