@@ -9,8 +9,8 @@ terraform {
 
 provider "aws" {
     region = var.aws_region
-    access_key = "AKIAVEPEMGGSXSJWLS6B"
-    secret_key = "Ntvifi/AlxvoaHrhJBZTiLGgKfr1O8lCeToBRHnl"
+    access_key = "your access key"
+    secret_key = "your secret key"
 }
 
 
@@ -22,4 +22,5 @@ resource "aws_ecr_repository" "app_ecr_repo" {
     image_scanning_configuration {
         scan_on_push = true
     }
+
 }
